@@ -1,9 +1,7 @@
 from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater
 
-token = '147645482:AAEwfBMbjaRZq4TgyCJEbOK8o0R6KmDy1-A'
-updater = Updater(token=token)
-dispatcher = updater.dispatcher
+TOKEN = '147645482:AAEwfBMbjaRZq4TgyCJEbOK8o0R6KmDy1-A'
 
 
 def textMessageHandling(bot, update):
@@ -18,7 +16,10 @@ def photoMessageHandling(bot, update):
                   photo=bot.getFile(file_id=file_id).file_path)
 
 
-if __name__ == "__main__":
+def main():
+    updater = Updater(token=TOKEN)
+    dispatcher = updater.dispatcher
+
     text_message_handler = MessageHandler([Filters.text], textMessageHandling)
     photo_message_handler = MessageHandler([Filters.photo], photoMessageHandling)
 
@@ -26,3 +27,7 @@ if __name__ == "__main__":
     dispatcher.addHandler(photo_message_handler)
 
     updater.start_polling()
+
+
+if __name__ == "__main__":
+    main()
