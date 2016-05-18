@@ -3,8 +3,10 @@
 import json
 import logging
 import random
+from Queue import Queue
 
 import pymongo
+import subprocess
 from telegram.error import TelegramError
 from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater
@@ -21,8 +23,7 @@ class Tigrinka(object):
         self._client = pymongo.MongoClient()
         self._db = self._client.tigrinka
         self._styles = Tigrinka.read_styles()
-        self._updater = Updater(token=Tigrinka.TOKEN)
-        self._job_queue = self._updater.job_queue
+        self._tasks = Queue()
 
     @staticmethod
     def read_styles():
@@ -79,9 +80,9 @@ class Tigrinka(object):
         logger.info('Should start neuro-magic on photo %s and style %s', filename, style['command'])
         # TODO: make it async
         # TODO: implement
-        bot.sendMessage(update.message.chat_id,
-                        'Sorry, neuro-magic is not implemented yet. Here is your original photo.')
-        bot.sendPhoto(update.message.chat_id, photo=file_id)
+        self._tasks.put(ProcessTask(update.message.chat_id, filename))
+        bot.sendMessage(update.message.chat_id, 'Your request will be processed some time soon.')
+
 
     def show_help(self, bot, update):
         self.handle_user(update)
@@ -113,7 +114,8 @@ class Tigrinka(object):
         return func
 
     def start(self):
-        dispatcher = self._updater.dispatcher
+        updater = Updater(token=Tigrinka.TOKEN)
+        dispatcher = updater.dispatcher
 
         for style in self._styles:
             dispatcher.add_handler(CommandHandler(style['command'], self.set_style(style)))
@@ -124,19 +126,37 @@ class Tigrinka(object):
         dispatcher.add_handler(MessageHandler([Filters.text], self.show_help))
         dispatcher.add_handler(MessageHandler([Filters.photo], self.handle_photo_message))
 
-        self._updater.start_polling()
+        updater.start_polling()
+        updater.job_queue.put(self.process_tasks, 1)
+
+    def process_tasks(self, bot):
+        if not self._tasks.empty():
+            while True:
+                if self._tasks.queue[0](bot):
+                    self._tasks.get()
+                else:
+                    break
 
 
 class ProcessTask(object):
-    def __init__(self, tigrinka, chat_id, filename, subproc):
-        self.tigrinka = tigrinka
+    def __init__(self, chat_id, filename):
         self.chat_id = chat_id
         self.filename = filename
-        self.subproc = subproc
+        self.popen = None
 
     def __call__(self, bot):
-        # TODO: implement
-        pass
+        if self.popen is None:
+            self.popen = subprocess.Popen('sleep 5', shell=True)
+            return False
+        else:
+            result = self.popen.poll()
+            if result is None:
+                return False
+            if result:
+                logger.error('Subprocess returned code %d' % result)
+            else:
+                bot.sendMessage(self.chat_id, 'Something happened')
+            return True
 
 
 def main():
