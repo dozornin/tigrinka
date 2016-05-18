@@ -4,6 +4,7 @@ import logging
 import os
 import random
 
+from telegram.error import TelegramError
 from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater
 
@@ -12,22 +13,38 @@ from telegram.ext.commandhandler import CommandHandler
 
 logger = logging.getLogger(__name__)
 
-TOKEN = '147645482:AAEwfBMbjaRZq4TgyCJEbOK8o0R6KmDy1-A'
-
 
 class Tigrinka(object):
+    TOKEN = '147645482:AAEwfBMbjaRZq4TgyCJEbOK8o0R6KmDy1-A'
     RANDOM_STYLE = -1
 
     def __init__(self):
         self._client = pymongo.MongoClient()
         self._db = self._client.tigrinka
         self._styles = Tigrinka.read_styles()
+        self._updater = Updater(token=Tigrinka.TOKEN)
+        self._job_queue = self._updater.job_queue
 
     @staticmethod
     def read_styles():
         # TODO: consider using keys instead of indexes
         return [os.path.join('styles', filename) for filename in sorted(os.listdir('styles')) if
                 filename.endswith('.jpg')]
+
+    def send_style(self, bot, chat_id, style_index):
+        cursor = self._db.styles.find({'style_index': style_index})
+        if cursor.count() != 0:
+            document = cursor.next()
+            file_id = document.get('file_id')
+            if file_id is not None:
+                try:
+                    bot.sendPhoto(chat_id, file_id)
+                    return
+                except TelegramError as ex:
+                    logger.info('Could not locate photo %s on Telegram servers: %s', file_id, ex)
+        message = bot.sendPhoto(chat_id, open(self._styles[style_index]))
+        file_id = message.photo[-1].file_id
+        self._db.styles.update_one({'style_index': style_index}, {'$set': {'file_id': file_id}}, upsert=True)
 
     def handle_user(self, update):
         user = update.message.from_user
@@ -76,9 +93,8 @@ class Tigrinka(object):
     def list_styles(self, bot, update):
         chat_id = update.message.chat_id
         bot.sendMessage(chat_id, 'You can choose one of the following styles.')
-        for style_index, style in enumerate(self._styles):
-            # TODO: don't send photos each time, use file_id
-            bot.sendPhoto(chat_id, photo=open(style, 'rb'))
+        for style_index in xrange(len(self._styles)):
+            self.send_style(bot, chat_id, style_index)
             bot.sendMessage(chat_id, 'To use this style send me command /style%d' % style_index)
         bot.sendMessage(chat_id, 'To use random style each time send me command /stylerandom')
 
@@ -92,10 +108,8 @@ class Tigrinka(object):
         return func
 
     def start(self):
-        updater = Updater(token=TOKEN)
-        dispatcher = updater.dispatcher
+        dispatcher = self._updater.dispatcher
 
-        photo_message_handler = MessageHandler([Filters.photo], self.handle_photo_message)
         for style_index in xrange(len(self._styles)):
             dispatcher.add_handler(CommandHandler('style%d' % style_index, self.set_style(style_index)))
         dispatcher.add_handler(CommandHandler('stylerandom', self.set_style(-1)))
@@ -103,9 +117,9 @@ class Tigrinka(object):
         dispatcher.add_handler(CommandHandler('start', self.show_help))
         dispatcher.add_handler(CommandHandler('help', self.show_help))
         dispatcher.add_handler(MessageHandler([Filters.text], self.show_help))
-        dispatcher.add_handler(photo_message_handler)
+        dispatcher.add_handler(MessageHandler([Filters.photo], self.handle_photo_message))
 
-        updater.start_polling()
+        self._updater.start_polling()
 
 
 def main():
