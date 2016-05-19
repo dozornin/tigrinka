@@ -176,12 +176,12 @@ class ProcessTask(object):
             else:
                 self.popen = subprocess.Popen(
                     'th %(neural_style)s/neural_style.lua '
-                    '-proto_file %(neural_style)s/models/VGG_ILSVRC_19_layers_deploy.prototxt'
-                    '-model_file %(neural_style)s/models/VGG_ILSVRC_19_layers.caffemodel'
-                    '-num_iterations 300'
-                    '-save_iter 300'
-                    '-style_image %(style)s'
-                    '-content_image %(input)s'
+                    '-proto_file %(neural_style)s/models/VGG_ILSVRC_19_layers_deploy.prototxt '
+                    '-model_file %(neural_style)s/models/VGG_ILSVRC_19_layers.caffemodel '
+                    '-num_iterations 300 '
+                    '-save_iter 300 '
+                    '-style_image %(style)s '
+                    '-content_image %(input)s '
                     '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
                                                       output=self.output_filename, neural_style=self.neural_style_dir),
                     shell=True)
