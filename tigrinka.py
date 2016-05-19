@@ -149,7 +149,7 @@ class ProcessTask(object):
             self.popen = subprocess.Popen(
                 'th /home/ubuntu/neural-style/neural_style.lua \
                   -proto_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers_deploy.prototxt \
-                  -modelfile /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers.caffemodel \
+                  -model_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers.caffemodel \
                   -num_iterations 300 \
                   -style_image /mnt/styles/style-01.jpg \
                   -content_image {0} \
