@@ -151,7 +151,7 @@ class ProcessTask(object):
                   -proto_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers_deploy.prototxt \
                   -model_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers.caffemodel \
                   -num_iterations 300 \
-                  -style_image /mnt/styles/style-01.jpg \
+                  -style_image /mnt/styles/style4.jpg \
                   -content_image {0} \
                   -output_image {1}'.format(
                     self.filename, self.output_filename),
