@@ -145,7 +145,7 @@ class ProcessTask(object):
 
     def __call__(self, bot):
         if self.popen is None:
-            self.output_filename = '/mnt/output/%s' % self.filename.split('/')[-1]
+            self.output_filename = '/mnt/output/%s.png' % self.filename.split('/')[-1]
             self.popen = subprocess.Popen(
                 'th /home/ubuntu/neural-style/neural_style.lua \
                   -proto_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers_deploy.prototxt \
