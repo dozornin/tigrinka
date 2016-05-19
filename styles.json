@@ -2,41 +2,41 @@
   {
     "command": "style0",
     "description": "Стиль: «Уорхол»",
-    "filename": "styles/style0.jpg"
+    "filename": "/mnt/styles/style0.jpg"
   },
   {
     "command": "style1",
     "description": "Стиль: «Мазок импрессиониста»",
-    "filename": "styles/style1.jpg"
+    "filename": "/mnt/styles/style1.jpg"
   },
   {
     "command": "style2",
     "description": "Ситль: «Пастельные тона»",
-    "filename": "styles/style2.jpg"
+    "filename": "/mnt/styles/style2.jpg"
   },
   {
     "command": "style3",
     "description": "Стиль: «»",
-    "filename": "styles/style3.jpg"
+    "filename": "/mnt/styles/style3.jpg"
   },
   {
     "command": "style4",
     "description": "Стиль: «Семейка Адамс»",
-    "filename": "styles/style4.jpg"
+    "filename": "/mnt/styles/style4.jpg"
   },
   {
     "command": "style5",
     "description": "Стиль: «Ну такие, знаешь, более постельные тона»",
-    "filename": "styles/style5.jpg"
+    "filename": "/mnt/styles/style5.jpg"
   },
   {
     "command": "style6",
     "description": "Стиль: «»",
-    "filename": "styles/style6.jpg"
+    "filename": "/mnt/styles/style6.jpg"
   },
   {
     "command": "style7",
     "description": "Стиль: «»",
-    "filename": "styles/style7.jpg"
+    "filename": "/mnt/styles/style7.jpg"
   }
 ]
