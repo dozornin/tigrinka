@@ -139,7 +139,7 @@ class Tigrinka(object):
 
         for style in self._styles:
             dispatcher.add_handler(CommandHandler(style['command'], self.set_style(style)))
-        dispatcher.add_handler(CommandHandler('stylerandom', self.set_style(-1)))
+        dispatcher.add_handler(CommandHandler('stylerandom', self.set_style(None)))
         dispatcher.add_handler(CommandHandler('styles', self.list_styles))
         dispatcher.add_handler(CommandHandler('start', self.show_help))
         dispatcher.add_handler(CommandHandler('help', self.show_help))
