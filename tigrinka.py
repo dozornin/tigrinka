@@ -42,7 +42,7 @@ class Tigrinka(object):
         return json.load(open('styles.json'))
 
     def get_style_filepath(self, style):
-        return os.path.join(self._styles_dir, style['filename'])
+        return os.path.join(self._styles_dir, style['filename'].encode('utf8'))
 
     def send_style(self, bot, chat_id, style_index):
         caption = self._styles[style_index]['description']
@@ -57,7 +57,7 @@ class Tigrinka(object):
                 except TelegramError as ex:
                     logger.info('Could not locate photo %s on Telegram servers: %s', file_id, ex)
         message = bot.sendPhoto(chat_id, open(self.get_style_filepath(self._styles[style_index]), 'rb'),
-                                caption=caption)
+                                caption=caption.encode('utf8'))
         file_id = message.photo[-1].file_id
         self._db.styles.update_one({'style_index': style_index}, {'$set': {'file_id': file_id}}, upsert=True)
 
@@ -102,7 +102,7 @@ class Tigrinka(object):
             print >> output, style_filepath
 
         self._tasks.put(ProcessTask(chat_id, filename, style_filepath, tempdir, self.neural_style_dir))
-        bot.sendMessage(chat_id, 'Your request will be processed some time soon.')
+        bot.sendMessage(chat_id, 'Приступаю... Дайте мне несколько минут.')
 
     def show_help(self, bot, update):
         self.handle_user(update)
@@ -113,11 +113,11 @@ class Tigrinka(object):
 
     def list_styles(self, bot, update):
         chat_id = update.message.chat_id
-        bot.sendMessage(chat_id, 'You can choose one of the following styles.')
+        bot.sendMessage(chat_id, 'Можете выбрать один из следующих стилей.')
         for style_index in xrange(len(self._styles)):
             self.send_style(bot, chat_id, style_index)
-            bot.sendMessage(chat_id, 'To use this style send me command /style%d' % style_index)
-        bot.sendMessage(chat_id, 'To use random style each time send me command /stylerandom')
+            bot.sendMessage(chat_id, 'Чтобы использовать этот стиль, пришлите команду /style%d' % style_index)
+        bot.sendMessage(chat_id, 'Чтобы использовать случайный стиль каждый раз, пришлите команду /stylerandom')
 
     def set_style(self, style):
         def func(bot, update):
@@ -193,7 +193,7 @@ class ProcessTask(object):
             if result:
                 logger.error('Subprocess returned code %d' % result)
             else:
-                bot.sendMessage(self.chat_id, 'Something happened')
+                bot.sendMessage(self.chat_id, 'Вот что у меня получилось. Не судите строго.')
                 bot.sendPhoto(self.chat_id, photo=open(self.output_filename, 'rb'))
                 shutil.rmtree(self.working_dir)
             return True
