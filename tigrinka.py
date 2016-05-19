@@ -3,7 +3,6 @@
 import json
 import logging
 import random
-from datetime import datetime
 from Queue import Queue
 
 import pymongo
@@ -148,7 +147,13 @@ class ProcessTask(object):
         if self.popen is None:
             self.output_filename = '/mnt/output/%s' % self.filename.split('/')[-1]
             self.popen = subprocess.Popen(
-                'th /home/ubuntu/neural-style/neural_style.lua -style_image /mnt/styles/style-01.jpg -content_image {0} -num_iterations 300 -output_image {1}'.format(
+                'th /home/ubuntu/neural-style/neural_style.lua \
+                  -proto_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers_deploy.prototxt \
+                  -modelfile /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers.caffemodel \
+                  -num_iterations 300 \
+                  -style_image /mnt/styles/style-01.jpg \
+                  -content_image {0} \
+                  -output_image {1}'.format(
                     self.filename, self.output_filename),
                 shell=True)
             return False
