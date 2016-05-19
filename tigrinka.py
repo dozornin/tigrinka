@@ -150,12 +150,11 @@ class Tigrinka(object):
         updater.job_queue.put(self.process_tasks, 1)
 
     def process_tasks(self, bot):
-        if not self._tasks.empty():
-            while True:
-                if self._tasks.queue[0](bot):
-                    self._tasks.get()
-                else:
-                    break
+        while not self._tasks.empty():
+            if self._tasks.queue[0](bot):
+                self._tasks.get()
+            else:
+                break
 
 
 class ProcessTask(object):
