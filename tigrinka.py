@@ -3,6 +3,7 @@
 import json
 import logging
 import random
+from datetime import datetime
 from Queue import Queue
 
 import pymongo
@@ -71,7 +72,7 @@ class Tigrinka(object):
     def handle_photo_message(self, bot, update):
         # TODO: delete old pictures
         file_id = update.message.photo[-1].file_id
-        filename = './pictures/%s' % file_id
+        filename = '/mnt/pictures/%s' % file_id
         logger.debug('Downloading photo %s', file_id)
         bot.getFile(file_id=file_id).download(filename)
 
@@ -82,7 +83,6 @@ class Tigrinka(object):
         # TODO: implement
         self._tasks.put(ProcessTask(update.message.chat_id, filename))
         bot.sendMessage(update.message.chat_id, 'Your request will be processed some time soon.')
-
 
     def show_help(self, bot, update):
         self.handle_user(update)
@@ -146,7 +146,11 @@ class ProcessTask(object):
 
     def __call__(self, bot):
         if self.popen is None:
-            self.popen = subprocess.Popen('sleep 5', shell=True)
+            self.output_filename = '/mnt/output/%s' % self.filename.split('/')[-1]
+            self.popen = subprocess.Popen(
+                'th /home/ubuntu/neural-style/neural_style.lua -style_image /mnt/styles/style-01.jpg -content_image {0} -num_iterations 300 -output_image {1}'.format(
+                    self.filename, self.output_filename),
+                shell=True)
             return False
         else:
             result = self.popen.poll()
@@ -156,6 +160,7 @@ class ProcessTask(object):
                 logger.error('Subprocess returned code %d' % result)
             else:
                 bot.sendMessage(self.chat_id, 'Something happened')
+                bot.sendPhoto(self.chat_id, photo=open(self.output_filename, 'rb'))
             return True
 
 
