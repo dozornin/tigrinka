@@ -23,23 +23,21 @@ class Tigrinka(object):
     TOKEN = '147645482:AAEwfBMbjaRZq4TgyCJEbOK8o0R6KmDy1-A'
     RANDOM_STYLE = 'random'
 
-    def __init__(self, styles_dir=None, working_dir=None, neural_style_dir=None):
+    def __init__(self, styles_dir=None, working_dir=None, neural_style_dir=None, max_tasks=None):
         self._client = pymongo.MongoClient()
         self._db = self._client.tigrinka
-        self._styles = Tigrinka.read_styles()
+        self._styles = json.load(open('styles.json'))
+        self._messages = json.load(open('messages.json'))
         self._tasks = Queue()
         self._styles_dir = styles_dir or 'styles'
         assert os.path.exists(self._styles_dir)
         self._working_dir = working_dir or 'photos'
         if not os.path.exists(self._working_dir):
             os.makedirs(self._working_dir)
-        self.neural_style_dir = neural_style_dir
-        if self.neural_style_dir is not None:
-            assert os.path.exists(self.neural_style_dir)
-
-    @staticmethod
-    def read_styles():
-        return json.load(open('styles.json'))
+        self._neural_style_dir = neural_style_dir
+        if self._neural_style_dir is not None:
+            assert os.path.exists(self._neural_style_dir)
+        self._max_tasks = max_tasks or 1
 
     def get_style_filepath(self, style):
         return os.path.join(self._styles_dir, style['filename'].encode('utf8'))
@@ -86,13 +84,13 @@ class Tigrinka(object):
     def handle_photo_message(self, bot, update):
         chat_id = update.message.chat_id
         file_id = update.message.photo[-1].file_id
-        tempdir = os.path.join(self._working_dir, file_id)
+        style = self.get_style(chat_id)
+        tempdir = os.path.join(self._working_dir, file_id + ' - ' + style['command'])
         os.makedirs(tempdir)
         filename = os.path.join(tempdir, 'input.jpg')
         logger.debug('Downloading photo %s', file_id)
         bot.getFile(file_id=file_id).download(filename)
 
-        style = self.get_style(chat_id)
         style_filepath = self.get_style_filepath(style)
 
         logger.info('Should start neuro-magic on photo %s and style %s (%s)',
@@ -101,8 +99,10 @@ class Tigrinka(object):
             print >> output, chat_id
             print >> output, style_filepath
 
-        self._tasks.put(ProcessTask(chat_id, filename, style_filepath, tempdir, self.neural_style_dir))
-        bot.sendMessage(chat_id, 'Приступаю... Дайте мне несколько минут.')
+        messages = random.choice(self._messages)
+        for message in messages:
+            bot.sendMessage(chat_id, message.encode('utf8'))
+        self._tasks.put(ProcessTask(chat_id, filename, style_filepath, tempdir, self._neural_style_dir))
 
     def show_help(self, bot, update):
         self.handle_user(update)
@@ -129,7 +129,7 @@ class Tigrinka(object):
                                         {'$set':
                                              {'style':
                                                   style['command'] if style is not None else Tigrinka.RANDOM_STYLE}})
-            bot.sendMessage(chat_id, 'Style is set to "%s"' % description)
+            bot.sendMessage(chat_id, (u'Вы выбрали стиль «%s»' % description).encode('utf8'))
 
         return func
 
@@ -150,8 +150,13 @@ class Tigrinka(object):
         updater.job_queue.put(self.process_tasks, 1)
 
     def process_tasks(self, bot):
+        for i in xrange(min(self._max_tasks, len(self._tasks.queue))):
+            task = self._tasks.queue[i]
+            if not task.started:
+                task.start(bot)
         while not self._tasks.empty():
-            if self._tasks.queue[0](bot):
+            task = self._tasks.queue[0]
+            if task.finished or task.process(bot):
                 self._tasks.get()
             else:
                 break
@@ -166,36 +171,42 @@ class ProcessTask(object):
         self.output_filename = os.path.join(self.working_dir, 'output.jpg')
         self.neural_style_dir = neural_style_dir
         self.popen = None
+        self.started = False
+        self.finished = False
 
-    def __call__(self, bot):
-        if self.popen is None:
-            if self.neural_style_dir is None:
-                bot.sendMessage(self.chat_id, 'Простите, ничего не получилось. Я разучился рисовать :(')
-                return True
-            else:
-                self.popen = subprocess.Popen(
-                    'th %(neural_style)s/neural_style.lua '
-                    '-proto_file %(neural_style)s/models/VGG_ILSVRC_19_layers_deploy.prototxt '
-                    '-model_file %(neural_style)s/models/VGG_ILSVRC_19_layers.caffemodel '
-                    '-num_iterations 300 '
-                    '-save_iter 300 '
-                    '-style_image %(style)s '
-                    '-content_image %(input)s '
-                    '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
-                                                      output=self.output_filename, neural_style=self.neural_style_dir),
-                    shell=True)
-                return False
+    def start(self, bot):
+        assert not self.started
+        self.started = True
+        if self.neural_style_dir is None:
+            bot.sendMessage(self.chat_id, 'Простите, ничего не получилось. Я разучился рисовать :(')
+            self.finished = True
         else:
-            result = self.popen.poll()
-            if result is None:
-                return False
-            if result:
-                logger.error('Subprocess returned code %d' % result)
-            else:
-                bot.sendMessage(self.chat_id, 'Вот что у меня получилось. Не судите строго.')
-                bot.sendPhoto(self.chat_id, photo=open(self.output_filename, 'rb'))
-                shutil.rmtree(self.working_dir)
-            return True
+            self.popen = subprocess.Popen(
+                'th %(neural_style)s/neural_style.lua '
+                '-proto_file %(neural_style)s/models/VGG_ILSVRC_19_layers_deploy.prototxt '
+                '-model_file %(neural_style)s/models/VGG_ILSVRC_19_layers.caffemodel '
+                '-num_iterations 300 '
+                '-save_iter 300 '
+                '-style_image %(style)s '
+                '-content_image %(input)s '
+                '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
+                                                  output=self.output_filename, neural_style=self.neural_style_dir),
+                shell=True)
+
+    def process(self, bot):
+        assert not self.finished
+        result = self.popen.poll()
+        if result is None:
+            return False
+        self.finished = True
+        if result:
+            logger.error('Subprocess returned code %d' % result)
+            bot.sendMessage(self.chat_id, 'Простите, я себя сегодня плохо чувствую.')
+        else:
+            bot.sendMessage(self.chat_id, 'Вот что у меня получилось. Не судите строго.')
+            bot.sendPhoto(self.chat_id, photo=open(self.output_filename, 'rb'))
+            shutil.rmtree(self.working_dir)
+        return True
 
 
 def main():
@@ -203,9 +214,11 @@ def main():
     parser.add_argument('--styles', help='Styles directory')
     parser.add_argument('--path', help='Working dir')
     parser.add_argument('--neural', help='Neural-style dir')
+    parser.add_argument('--simultaneous', type=int, help='Number of simultaneous neural-style tasks')
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG)
-    tigrinka = Tigrinka(styles_dir=args.styles, working_dir=args.path, neural_style_dir=args.neural)
+    tigrinka = Tigrinka(styles_dir=args.styles, working_dir=args.path, neural_style_dir=args.neural,
+                        max_tasks=args.simultaneous)
     tigrinka.start()
 
 

@@ -1,42 +1,42 @@
 [
   {
     "command": "style0",
-    "description": "Стиль: «Товарисч Энди»",
+    "description": "Товарисч Энди",
     "filename": "style0.jpg"
   },
   {
     "command": "style1",
-    "description": "Стиль: «Мазок импрессиониста»",
+    "description": "Мазок импрессиониста",
     "filename": "style1.jpg"
   },
   {
     "command": "style2",
-    "description": "Стиль: «Пастельные тона»",
+    "description": "Пастельные тона",
     "filename": "style2.jpg"
   },
   {
     "command": "style3",
-    "description": "Стиль: «Ши-карандаши»",
+    "description": "Ши-карандаши",
     "filename": "style3.jpg"
   },
   {
     "command": "style4",
-    "description": "Стиль: «Семейка Адамс»",
+    "description": "Семейка Адамс",
     "filename": "style4.jpg"
   },
   {
     "command": "style5",
-    "description": "Стиль: «Ну такие, знаешь, более постельные тона»",
+    "description": "Ну такие, знаешь, более постельные тона",
     "filename": "style5.jpg"
   },
   {
     "command": "style6",
-    "description": "Стиль: «Масло в ходу»",
+    "description": "Масло в ходу",
     "filename": "style6.jpg"
   },
   {
     "command": "style7",
-    "description": "Стиль: «Сине-зеленые глаза...»",
+    "description": "Сине-зеленые глаза...",
     "filename": "style7.jpg"
   }
 ]
