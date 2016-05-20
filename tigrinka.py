@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # coding=utf-8
+import argparse
 import json
 import logging
+import os
 import random
 from Queue import Queue
 
 import pymongo
 import subprocess
+
+import shutil
 from telegram.error import TelegramError
 from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater
@@ -19,16 +23,26 @@ class Tigrinka(object):
     TOKEN = '147645482:AAEwfBMbjaRZq4TgyCJEbOK8o0R6KmDy1-A'
     RANDOM_STYLE = 'random'
 
-    def __init__(self):
+    def __init__(self, styles_dir=None, working_dir=None, neural_style_dir=None):
         self._client = pymongo.MongoClient()
         self._db = self._client.tigrinka
         self._styles = Tigrinka.read_styles()
         self._tasks = Queue()
+        self._styles_dir = styles_dir or 'styles'
+        assert os.path.exists(self._styles_dir)
+        self._working_dir = working_dir or 'photos'
+        if not os.path.exists(self._working_dir):
+            os.makedirs(self._working_dir)
+        self.neural_style_dir = neural_style_dir
+        if self.neural_style_dir is not None:
+            assert os.path.exists(self.neural_style_dir)
 
     @staticmethod
     def read_styles():
-        # TODO: consider using keys instead of indexes
         return json.load(open('styles.json'))
+
+    def get_style_filepath(self, style):
+        return os.path.join(self._styles_dir, style['filename'].encode('utf8'))
 
     def send_style(self, bot, chat_id, style_index):
         caption = self._styles[style_index]['description']
@@ -42,7 +56,8 @@ class Tigrinka(object):
                     return
                 except TelegramError as ex:
                     logger.info('Could not locate photo %s on Telegram servers: %s', file_id, ex)
-        message = bot.sendPhoto(chat_id, open(self._styles[style_index]['filename'], 'rb'), caption=caption)
+        message = bot.sendPhoto(chat_id, open(self.get_style_filepath(self._styles[style_index]), 'rb'),
+                                caption=caption.encode('utf8'))
         file_id = message.photo[-1].file_id
         self._db.styles.update_one({'style_index': style_index}, {'$set': {'file_id': file_id}}, upsert=True)
 
@@ -69,19 +84,25 @@ class Tigrinka(object):
         return style
 
     def handle_photo_message(self, bot, update):
-        # TODO: delete old pictures
+        chat_id = update.message.chat_id
         file_id = update.message.photo[-1].file_id
-        filename = '/mnt/pictures/%s' % file_id
+        tempdir = os.path.join(self._working_dir, file_id)
+        os.makedirs(tempdir)
+        filename = os.path.join(tempdir, 'input.jpg')
         logger.debug('Downloading photo %s', file_id)
         bot.getFile(file_id=file_id).download(filename)
 
-        style = self.get_style(update.message.chat_id)
+        style = self.get_style(chat_id)
+        style_filepath = self.get_style_filepath(style)
 
-        logger.info('Should start neuro-magic on photo %s and style %s', filename, style['command'])
-        # TODO: make it async
-        # TODO: implement
-        self._tasks.put(ProcessTask(update.message.chat_id, filename))
-        bot.sendMessage(update.message.chat_id, 'Your request will be processed some time soon.')
+        logger.info('Should start neuro-magic on photo %s and style %s (%s)',
+                    filename, style['command'], style_filepath)
+        with open(os.path.join(tempdir, 'info.txt'), 'w') as output:
+            print >> output, chat_id
+            print >> output, style_filepath
+
+        self._tasks.put(ProcessTask(chat_id, filename, style_filepath, tempdir, self.neural_style_dir))
+        bot.sendMessage(chat_id, 'Приступаю... Дайте мне несколько минут.')
 
     def show_help(self, bot, update):
         self.handle_user(update)
@@ -92,11 +113,11 @@ class Tigrinka(object):
 
     def list_styles(self, bot, update):
         chat_id = update.message.chat_id
-        bot.sendMessage(chat_id, 'You can choose one of the following styles.')
+        bot.sendMessage(chat_id, 'Можете выбрать один из следующих стилей.')
         for style_index in xrange(len(self._styles)):
             self.send_style(bot, chat_id, style_index)
-            bot.sendMessage(chat_id, 'To use this style send me command /style%d' % style_index)
-        bot.sendMessage(chat_id, 'To use random style each time send me command /stylerandom')
+            bot.sendMessage(chat_id, 'Чтобы использовать этот стиль, пришлите команду /style%d' % style_index)
+        bot.sendMessage(chat_id, 'Чтобы использовать случайный стиль каждый раз, пришлите команду /stylerandom')
 
     def set_style(self, style):
         def func(bot, update):
@@ -118,7 +139,7 @@ class Tigrinka(object):
 
         for style in self._styles:
             dispatcher.add_handler(CommandHandler(style['command'], self.set_style(style)))
-        dispatcher.add_handler(CommandHandler('stylerandom', self.set_style(-1)))
+        dispatcher.add_handler(CommandHandler('stylerandom', self.set_style(None)))
         dispatcher.add_handler(CommandHandler('styles', self.list_styles))
         dispatcher.add_handler(CommandHandler('start', self.show_help))
         dispatcher.add_handler(CommandHandler('help', self.show_help))
@@ -129,35 +150,41 @@ class Tigrinka(object):
         updater.job_queue.put(self.process_tasks, 1)
 
     def process_tasks(self, bot):
-        if not self._tasks.empty():
-            while True:
-                if self._tasks.queue[0](bot):
-                    self._tasks.get()
-                else:
-                    break
+        while not self._tasks.empty():
+            if self._tasks.queue[0](bot):
+                self._tasks.get()
+            else:
+                break
 
 
 class ProcessTask(object):
-    def __init__(self, chat_id, filename):
+    def __init__(self, chat_id, input_filename, style_filename, working_dir, neural_style_dir):
         self.chat_id = chat_id
-        self.filename = filename
+        self.input_filename = input_filename
+        self.style_filename = style_filename
+        self.working_dir = working_dir
+        self.output_filename = os.path.join(self.working_dir, 'output.jpg')
+        self.neural_style_dir = neural_style_dir
         self.popen = None
 
     def __call__(self, bot):
         if self.popen is None:
-            self.output_filename = '/mnt/output/%s.png' % self.filename.split('/')[-1]
-            self.popen = subprocess.Popen(
-                'th /home/ubuntu/neural-style/neural_style.lua \
-                  -proto_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers_deploy.prototxt \
-                  -model_file /home/ubuntu/neural-style/models/VGG_ILSVRC_19_layers.caffemodel \
-                  -num_iterations 300 \
-                  -save_iter 300 \
-                  -style_image /mnt/styles/style4.jpg \
-                  -content_image {0} \
-                  -output_image {1}'.format(
-                    self.filename, self.output_filename),
-                shell=True)
-            return False
+            if self.neural_style_dir is None:
+                bot.sendMessage(self.chat_id, 'Простите, ничего не получилось. Я разучился рисовать :(')
+                return True
+            else:
+                self.popen = subprocess.Popen(
+                    'th %(neural_style)s/neural_style.lua '
+                    '-proto_file %(neural_style)s/models/VGG_ILSVRC_19_layers_deploy.prototxt '
+                    '-model_file %(neural_style)s/models/VGG_ILSVRC_19_layers.caffemodel '
+                    '-num_iterations 300 '
+                    '-save_iter 300 '
+                    '-style_image %(style)s '
+                    '-content_image %(input)s '
+                    '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
+                                                      output=self.output_filename, neural_style=self.neural_style_dir),
+                    shell=True)
+                return False
         else:
             result = self.popen.poll()
             if result is None:
@@ -165,14 +192,20 @@ class ProcessTask(object):
             if result:
                 logger.error('Subprocess returned code %d' % result)
             else:
-                bot.sendMessage(self.chat_id, 'Something happened')
+                bot.sendMessage(self.chat_id, 'Вот что у меня получилось. Не судите строго.')
                 bot.sendPhoto(self.chat_id, photo=open(self.output_filename, 'rb'))
+                shutil.rmtree(self.working_dir)
             return True
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--styles', help='Styles directory')
+    parser.add_argument('--path', help='Working dir')
+    parser.add_argument('--neural', help='Neural-style dir')
+    args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG)
-    tigrinka = Tigrinka()
+    tigrinka = Tigrinka(styles_dir=args.styles, working_dir=args.path, neural_style_dir=args.neural)
     tigrinka.start()
 
 
