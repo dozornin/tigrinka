@@ -191,6 +191,8 @@ class ProcessTask(object):
                 '-content_image %(input)s '
                 '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
                                                   output=self.output_filename, neural_style=self.neural_style_dir),
+                stdout=open(os.path.join(self.working_dir, 'stdout'), 'w'),
+                stderr=open(os.path.join(self.working_dir, 'stderr'), 'w'),
                 shell=True)
 
     def process(self, bot):
