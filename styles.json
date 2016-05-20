@@ -1,7 +1,7 @@
 [
   {
     "command": "style0",
-    "description": "Стиль: «Уорхол»",
+    "description": "Стиль: «Товарисч Энди»",
     "filename": "/mnt/styles/style0.jpg"
   },
   {
@@ -16,7 +16,7 @@
   },
   {
     "command": "style3",
-    "description": "Стиль: «»",
+    "description": "Стиль: «Ши-карандаши»",
     "filename": "/mnt/styles/style3.jpg"
   },
   {
@@ -31,12 +31,12 @@
   },
   {
     "command": "style6",
-    "description": "Стиль: «»",
+    "description": "Стиль: «Масло в ходу»",
     "filename": "/mnt/styles/style6.jpg"
   },
   {
     "command": "style7",
-    "description": "Стиль: «»",
+    "description": "Стиль: «Сине-зеленые глаза...»",
     "filename": "/mnt/styles/style7.jpg"
   }
 ]
