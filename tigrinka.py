@@ -223,10 +223,10 @@ def main():
     parser.add_argument('--styles', help='Styles directory')
     parser.add_argument('--path', help='Working dir')
     parser.add_argument('--neural', help='Neural-style dir')
-    parser.add_argument('--simultaneous', type=int, help='Number of simultaneous neural-style tasks')
+    parser.add_argument('--max-tasks', type=int, help='Number of simultaneous neural-style tasks')
     args = parser.parse_args()
     tigrinka = Tigrinka(styles_dir=args.styles, working_dir=args.path, neural_style_dir=args.neural,
-                        max_tasks=args.simultaneous)
+                        max_tasks=args.max_tasks)
     tigrinka.start()
 
 
