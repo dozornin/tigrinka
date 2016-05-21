@@ -86,7 +86,7 @@ class Tigrinka(object):
         file_id = update.message.photo[-1].file_id
         style = self.get_style(chat_id)
         logger.info('Got photo (chat_id: %s, file_id: %s, style: %s)', chat_id, file_id, style['command'])
-        tempdir = os.path.join(self._working_dir, file_id + ' - ' + style['command'])
+        tempdir = os.path.join(self._working_dir, file_id + '-' + style['command'])
         os.makedirs(tempdir)
         filename = os.path.join(tempdir, 'input.jpg')
         logger.debug('Downloading photo %s', file_id)
