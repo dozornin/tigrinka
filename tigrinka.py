@@ -111,9 +111,9 @@ class Tigrinka(object):
         logger.info('Got help command (char_id: %d, user: %s)', chat_id, user)
         if update.message.chat.type != 'group':
             bot.sendMessage(chat_id, '''Привет, я бот-художник. Учился у великого мастера Кристины. Пришлите мне фотографию и я тебе нарисую её в одном из известных мне стилей.
-                /styles — расскажет тебе, какие стили я знаю
-                /help — покажет это сообщение
-            Если Вам понравится результат, перешлите его @TigranKristinaBot
+            /styles — расскажет тебе, какие стили я знаю
+            /help — покажет это сообщение
+Если Вам понравится результат, перешлите его @TigranKristinaBot
             ''')
 
     def list_styles(self, bot, update):
