@@ -160,7 +160,7 @@ class Tigrinka(object):
                 task.start(bot)
         while not self._tasks.empty():
             task = self._tasks.queue[0]
-            if task.finished or task.process(bot):
+            if task.finished or task.started and task.process(bot):
                 self._tasks.get()
             else:
                 break
