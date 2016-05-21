@@ -109,10 +109,12 @@ class Tigrinka(object):
         chat_id = update.message.chat_id
         user = self.handle_user(update)
         logger.info('Got help command (char_id: %d, user: %s)', chat_id, user)
-        bot.sendMessage(chat_id, '''Send me a photo and I will send you a magic in reply, or use one of these commands:
-            /styles — list all available styles
-            /help — show this message
-        ''')
+        if update.message.type != 'group':
+            bot.sendMessage(chat_id, '''Привет, я бот-художник. Учился у великого мастера Кристины. Пришлите мне фотографию и я тебе нарисую её в одном из известных мне стилей.
+                /styles — расскажет тебе, какие стили я знаю
+                /help — покажет это сообщение
+            Если Вам понравится результат, перешлите его @TigranKristinaBot
+            ''')
 
     def list_styles(self, bot, update):
         chat_id = update.message.chat_id
@@ -212,7 +214,9 @@ class ProcessTask(object):
             bot.sendMessage(self.chat_id, 'Простите, я себя сегодня плохо чувствую.')
         else:
             logger.info('Task %s completed. Sending photo to chat %d', self.working_dir, self.chat_id)
-            bot.sendMessage(self.chat_id, 'Вот что у меня получилось. Не судите строго.')
+            bot.sendMessage(self.chat_id,
+                            'Вот что у меня получилось. Не судите строго.\n'
+                            'Если Вам понравится результат, перешлите его @TigranKristinaBot')
             bot.sendPhoto(self.chat_id, photo=open(self.output_filename.encode('utf8'), 'rb'))
             shutil.rmtree(self.working_dir)
         return True
