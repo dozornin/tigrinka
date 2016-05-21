@@ -223,7 +223,7 @@ class ProcessTask(object):
             bot.sendPhoto(self.chat_id, photo=open(self.output_filename.encode('utf8'), 'rb'))
             if self.copy_to_dir is not None:
                 shutil.copyfile(self.output_filename,
-                                os.path.join(self.copy_to_dir, os.path.dirname(self.working_dir) + '.jpg'))
+                                os.path.join(self.copy_to_dir, os.path.basename(self.working_dir) + '.jpg'))
             shutil.rmtree(self.working_dir)
         return True
 
