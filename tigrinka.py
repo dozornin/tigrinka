@@ -24,7 +24,7 @@ class Tigrinka(object):
     TOKEN = '147645482:AAEwfBMbjaRZq4TgyCJEbOK8o0R6KmDy1-A'
     RANDOM_STYLE = 'random'
 
-    def __init__(self, styles_dir=None, working_dir=None, neural_style_dir=None, max_tasks=None):
+    def __init__(self, styles_dir=None, working_dir=None, neural_style_dir=None, max_tasks=None, copy_to=None):
         self._client = pymongo.MongoClient()
         self._db = self._client.tigrinka
         self._styles = json.load(open('styles.json'))
@@ -39,6 +39,7 @@ class Tigrinka(object):
         if self._neural_style_dir is not None:
             assert os.path.exists(self._neural_style_dir)
         self._max_tasks = max_tasks or 1
+        self._copy_to = copy_to
 
     def get_style_filepath(self, style):
         return os.path.join(self._styles_dir, style['filename'].encode('utf8'))
@@ -103,7 +104,7 @@ class Tigrinka(object):
         messages = random.choice(self._messages)
         for message in messages:
             bot.sendMessage(chat_id, message.encode('utf8'))
-        self._tasks.put(ProcessTask(chat_id, filename, style_filepath, tempdir, self._neural_style_dir))
+        self._tasks.put(ProcessTask(chat_id, filename, style_filepath, tempdir, self._neural_style_dir, self._copy_to))
 
     def show_help(self, bot, update):
         chat_id = update.message.chat_id
@@ -169,13 +170,14 @@ class Tigrinka(object):
 
 
 class ProcessTask(object):
-    def __init__(self, chat_id, input_filename, style_filename, working_dir, neural_style_dir):
+    def __init__(self, chat_id, input_filename, style_filename, working_dir, neural_style_dir, copy_to_dir):
         self.chat_id = chat_id
         self.input_filename = input_filename
         self.style_filename = style_filename
         self.working_dir = working_dir
         self.output_filename = os.path.join(self.working_dir, 'output.jpg')
         self.neural_style_dir = neural_style_dir
+        self.copy_to_dir = copy_to_dir
         self.popen = None
         self.started = False
         self.finished = False
@@ -218,6 +220,8 @@ class ProcessTask(object):
                             'Вот что у меня получилось. Не судите строго.\n'
                             'Если Вам понравится результат, перешлите его @TigranKristinaBot')
             bot.sendPhoto(self.chat_id, photo=open(self.output_filename.encode('utf8'), 'rb'))
+            if self.copy_to_dir is not None:
+                shutil.copytree(self.working_dir, self.copy_to_dir)
             shutil.rmtree(self.working_dir)
         return True
 
@@ -229,9 +233,10 @@ def main():
     parser.add_argument('--path', help='Working dir')
     parser.add_argument('--neural', help='Neural-style dir')
     parser.add_argument('--max-tasks', type=int, help='Number of simultaneous neural-style tasks')
+    parser.add_argument('--copy-to', help='Copy-to directory')
     args = parser.parse_args()
     tigrinka = Tigrinka(styles_dir=args.styles, working_dir=args.path, neural_style_dir=args.neural,
-                        max_tasks=args.max_tasks)
+                        max_tasks=args.max_tasks, copy_to=args.copy_to)
     tigrinka.start()
 
 
