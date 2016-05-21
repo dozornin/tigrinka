@@ -85,6 +85,7 @@ class Tigrinka(object):
         chat_id = update.message.chat_id
         file_id = update.message.photo[-1].file_id
         style = self.get_style(chat_id)
+        logger.info('Got photo (chat_id: %s, file_id: %s, style: %s)', chat_id, file_id, style['command'])
         tempdir = os.path.join(self._working_dir, file_id + ' - ' + style['command'])
         os.makedirs(tempdir)
         filename = os.path.join(tempdir, 'input.jpg')
@@ -93,8 +94,6 @@ class Tigrinka(object):
 
         style_filepath = self.get_style_filepath(style)
 
-        logger.info('Should start neuro-magic on photo %s and style %s (%s)',
-                    filename, style['command'], style_filepath)
         with open(os.path.join(tempdir, 'info.txt'), 'w') as output:
             print >> output, chat_id
             print >> output, style_filepath
@@ -181,16 +180,18 @@ class ProcessTask(object):
             bot.sendMessage(self.chat_id, 'Простите, ничего не получилось. Я разучился рисовать :(')
             self.finished = True
         else:
+            cmd = ('th %(neural_style)s/neural_style.lua '
+                   '-proto_file %(neural_style)s/models/VGG_ILSVRC_19_layers_deploy.prototxt '
+                   '-model_file %(neural_style)s/models/VGG_ILSVRC_19_layers.caffemodel '
+                   '-num_iterations 300 '
+                   '-save_iter 300 '
+                   '-style_image %(style)s '
+                   '-content_image %(input)s '
+                   '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
+                                                     output=self.output_filename, neural_style=self.neural_style_dir))
+            logger.debug('Starting command "%s"', cmd)
             self.popen = subprocess.Popen(
-                'th %(neural_style)s/neural_style.lua '
-                '-proto_file %(neural_style)s/models/VGG_ILSVRC_19_layers_deploy.prototxt '
-                '-model_file %(neural_style)s/models/VGG_ILSVRC_19_layers.caffemodel '
-                '-num_iterations 300 '
-                '-save_iter 300 '
-                '-style_image %(style)s '
-                '-content_image %(input)s '
-                '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
-                                                  output=self.output_filename, neural_style=self.neural_style_dir),
+                cmd,
                 stdout=open(os.path.join(self.working_dir, 'stdout'), 'w'),
                 stderr=open(os.path.join(self.working_dir, 'stderr'), 'w'),
                 shell=True)
