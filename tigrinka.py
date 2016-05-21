@@ -215,13 +215,14 @@ class ProcessTask(object):
             logger.error('Subprocess returned code %d' % result)
             bot.sendMessage(self.chat_id, 'Простите, я себя сегодня плохо чувствую.')
         else:
-            logger.info('Task %s completed. Sending photo to chat %d', self.working_dir, self.chat_id)
+            logger.info('Task %s is completed. Sending photo to chat %d', self.working_dir, self.chat_id)
             bot.sendMessage(self.chat_id,
                             'Вот что у меня получилось. Не судите строго.\n'
                             'Если Вам понравится результат, перешлите его @TigranKristinaBot')
             bot.sendPhoto(self.chat_id, photo=open(self.output_filename.encode('utf8'), 'rb'))
             if self.copy_to_dir is not None:
-                shutil.copytree(self.working_dir, os.path.join(self.copy_to_dir, os.path.dirname(self.working_dir)))
+                shutil.copy(self.output_filename,
+                            os.path.join(self.copy_to_dir, os.path.dirname(self.working_dir) + '.jpg'))
             shutil.rmtree(self.working_dir)
         return True
 
