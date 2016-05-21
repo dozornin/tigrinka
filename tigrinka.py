@@ -194,7 +194,7 @@ class ProcessTask(object):
                    '-content_image %(input)s '
                    '-output_image %(output)s' % dict(style=self.style_filename, input=self.input_filename,
                                                      output=self.output_filename, neural_style=self.neural_style_dir))
-            logger.debug('Starting command "%s"', cmd)
+            logger.info('Starting command "%s"', cmd)
             self.popen = subprocess.Popen(
                 cmd,
                 stdout=open(os.path.join(self.working_dir, 'stdout'), 'w'),
@@ -211,6 +211,7 @@ class ProcessTask(object):
             logger.error('Subprocess returned code %d' % result)
             bot.sendMessage(self.chat_id, 'Простите, я себя сегодня плохо чувствую.')
         else:
+            logger.info('Task %s completed. Sending photo to chat %d', self.working_dir, self.chat_id)
             bot.sendMessage(self.chat_id, 'Вот что у меня получилось. Не судите строго.')
             bot.sendPhoto(self.chat_id, photo=open(self.output_filename.encode('utf8'), 'rb'))
             shutil.rmtree(self.working_dir)
