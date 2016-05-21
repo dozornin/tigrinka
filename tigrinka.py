@@ -207,7 +207,7 @@ class ProcessTask(object):
             bot.sendMessage(self.chat_id, 'Простите, я себя сегодня плохо чувствую.')
         else:
             bot.sendMessage(self.chat_id, 'Вот что у меня получилось. Не судите строго.')
-            bot.sendPhoto(self.chat_id, photo=open(self.output_filename, 'rb'))
+            bot.sendPhoto(self.chat_id, photo=open(self.output_filename.encode('utf8'), 'rb'))
             shutil.rmtree(self.working_dir)
         return True
 
