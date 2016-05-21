@@ -2,10 +2,13 @@
 # coding=utf-8
 import argparse
 import json
-import logging
+import logging.config
 import os
 import random
 from Queue import Queue
+
+logging.config.fileConfig('logging.ini')
+logger = logging.getLogger(__name__)
 
 import pymongo
 import subprocess
@@ -15,8 +18,6 @@ from telegram.error import TelegramError
 from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater
 from telegram.ext.commandhandler import CommandHandler
-
-logger = logging.getLogger(__name__)
 
 
 class Tigrinka(object):
@@ -67,6 +68,7 @@ class Tigrinka(object):
                                             'first_name': user.first_name,
                                             'last_name': user.last_name}},
                                       upsert=True)
+        return '%s (%s %s)' % (user.username, user.first_name, user.last_name)
 
     def get_style(self, chat_id):
         cursor = self._db.user_styles.find({'chat_id': chat_id})
@@ -104,14 +106,17 @@ class Tigrinka(object):
         self._tasks.put(ProcessTask(chat_id, filename, style_filepath, tempdir, self._neural_style_dir))
 
     def show_help(self, bot, update):
-        self.handle_user(update)
-        bot.sendMessage(update.message.chat_id, '''Send me a photo and I will send you a magic in reply, or use one of these commands:
+        chat_id = update.message.chat_id
+        user = self.handle_user(update)
+        logger.info('Got help command (char_id: %d, user: %s)', chat_id, user)
+        bot.sendMessage(chat_id, '''Send me a photo and I will send you a magic in reply, or use one of these commands:
             /styles — list all available styles
             /help — show this message
         ''')
 
     def list_styles(self, bot, update):
         chat_id = update.message.chat_id
+        logger.info('Got /styles command from chat %d', chat_id)
         bot.sendMessage(chat_id, 'Можете выбрать один из следующих стилей.')
         for style_index in xrange(len(self._styles)):
             self.send_style(bot, chat_id, style_index)
@@ -213,13 +218,13 @@ class ProcessTask(object):
 
 
 def main():
+    logger.info('Bot started')
     parser = argparse.ArgumentParser()
     parser.add_argument('--styles', help='Styles directory')
     parser.add_argument('--path', help='Working dir')
     parser.add_argument('--neural', help='Neural-style dir')
     parser.add_argument('--simultaneous', type=int, help='Number of simultaneous neural-style tasks')
     args = parser.parse_args()
-    logging.basicConfig(level=logging.DEBUG)
     tigrinka = Tigrinka(styles_dir=args.styles, working_dir=args.path, neural_style_dir=args.neural,
                         max_tasks=args.simultaneous)
     tigrinka.start()
